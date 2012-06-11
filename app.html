@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>
+        </title>
+        <link rel="stylesheet" href="http://code.jquery.com/mobile/1.1.0/jquery.mobile-1.1.0.min.css" />
+        <link rel="stylesheet" href="my.css" />
+        <style>
+            /* App custom styles */
+        </style>
+        <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js">
+        </script>
+        <script src="http://code.jquery.com/mobile/1.1.0/jquery.mobile-1.1.0.min.js">
+        </script>
+        <script src="http://www.parsecdn.com/js/parse-1.0.1.min.js"></script>
+        <script src="http://underscorejs.org/underscore-min.js"></script>
+    </head>
+    <body>
+        <!-- div id="fb-root"></div -->
+        <script>
+            (function() {
+                /*
+                var e = document.createElement('script'); e.async = true;
+                e.src = document.location.protocol + '//connect.facebook.net/en_US/all.js';
+                document.getElementById('fb-root').appendChild(e);
+                */
+                Parse.initialize("Zp7oxcFEKpi95Meynk7tzDECfzCeJYUzRiUK52tG", "uEhgrhWdcoc003OO5P33GSYdMUYT4IAQwqhoGOXi");
+            }());
+            
+            $(document).ready(function(){
+                if (Parse.User.current()) {
+                    loadUserData(function() {
+                        readyToPlay();
+                    });
+                } else {
+                    document.location = "/app.html#pageLogin";
+                }
+            })
+        </script>
+        <script>
+            /*
+            window.fbAsyncInit = function() {
+              FB.init({ appId: '216190471835507', 
+              status: true, 
+              cookie: true,
+              xfbml: true,
+              oauth: true});
+
+              FB.Event.subscribe('auth.statusChange', handleStatusChange);	
+            }; */
+            
+            function showLoadingScreen() {
+                document.location = "/app.html#page0"
+            }
+            
+            function loginUser() {
+                //document.location = "/app.html#page0";  // loading screen
+                //FB.login(function(response) {}, {scope:'email'});
+                showLoadingScreen();
+                
+                var email = $('#login_email').val();
+                var password = $('#login_password').val();
+                
+                Parse.User.logIn(email, password, {
+                    success: function(user) {
+                        loadUserData(function() {
+                            readyToPlay();
+                        });
+                    },
+                    error: function(user, error) {
+                        alert("Error: " + error.code + " " + error.message);
+                        document.location = "/app.html#pageLogin";
+                    }
+                });
+            }
+            
+            function registerUser() {
+                showLoadingScreen();
+                
+                var email = $('#login_email').val();
+                var password = $('#login_password').val();
+                
+                // register with Parse
+                var user = new Parse.User();
+                user.set("username", email);
+                user.set("password", password);
+                user.set("email", email);
+                user.set("last_checkin", new Date());
+                user.set("friends", []); // array of usernames
+                
+                user.signUp(null, {
+                    success: function(user) {
+                        document.location = "/app.html#pageSetProfile";
+                    },
+                    error: function(user, error) {
+                        alert("Error: " + error.code + " " + error.message);
+                        document.location = "/app.html#pageLogin";
+                    }
+                });
+            }
+            
+            function logout() {
+                var me = Parse.User.current();
+                me.set("last_checkin", null);
+                me.save(null, {
+                    success: function(user) {
+                        document.location = "/app.html#pageLogin"
+                        Parse.User.logOut();
+                    }
+                });
+            }
+            
+            function updateProfile() {
+                var pname = $('#public_name').val();
+                
+                var me = Parse.User.current();
+                me.set("public_name", pname);
+                me.save(null,{
+                   success: function(user) {
+                       $('#welcome_msg').html("Welcome, " + user.get("public_name") + ".");
+                       // TODO: if this was a new user registration, we should find any friends they might have and ask about it
+                       readyToPlay();
+                   },
+                   error: function(user, error) {
+                       alert("Error: " + error.code + " " + error.message);
+                   }
+                });
+            }
+            
+            function readyToPlay() {
+                var me = Parse.User.current();
+                me.set("last_checkin", new Date());
+                me.save(null, {
+                    success: function(user) {
+                        document.location = "/app.html#pagePlayList"
+                    },
+                    error: function(user, error) {
+                        alert("Error: " + error.code + " " + error.message);
+                    }
+                });
+            }
+            
+            function addFriend() {
+                /* FB.api('/me/friends', function(response) {
+                    console.log(response)
+                }); */
+                
+                // TODO: show loading screen
+                
+                var new_email = $('#friend_email').val();
+                if ( new_email && /(.+)@(.+){2,}\.(.+){2,}/.test(new_email) ) {
+                    var me = Parse.User.current();
+                    var friends = me.get("friends");
+                    friends = friends ? friends : [];
+                    // skip if we already have it
+                    if ( !_(friends).include(new_email) ) {
+                        friends.push( new_email );
+                        me.set("friends", friends);
+                        me.save(null, {
+                           success: function(user) {
+                               $('#friend_email').val("");
+                               loadUserData();
+                           },
+                           error: function(user, error) {
+                               alert("Error: " + error.code + " " + error.message);
+                           }
+                        });
+                    } else {
+                       alert("Error: " + new_email + " is already a friend!");
+                    }
+                }
+            }
+            
+            function removeFriend(email) {
+                var me = Parse.User.current();
+                var friends = me.get("friends");
+                friends = friends ? friends : [];
+                me.set("friends", _(friends).without(email) );
+                me.save(null, {
+                   success: function(user) {
+                       loadUserData();
+                   },
+                   error: function(user, error) {
+                       alert("Error: " + error.code + " " + error.message);
+                   }
+                });
+            }
+        </script>
+
+        <script>
+            var _fbMeResponse = {}; //undefined;
+            var _playTimeData = undefined; 
+            
+            /*
+            function handleStatusChange(response) {
+                document.body.className = response.authResponse ? 'connected' : 'not_connected';
+
+                if (response.authResponse) {
+                    console.log(response);
+                    loadUserData(response);
+                } else {
+                    document.location = "/app.html#pageLogin";
+                }
+            } */
+            function loadUserData(cb) {
+                // Load our Play Time friends, etc. from the data store
+                loadData(cb);
+                
+                $('#welcome_msg').html("Welcome back, " + Parse.User.current().get("public_name") + ".");
+                
+                // Load our basic info from FB
+                /* FB.api('/me', function(response) {
+                    _fbMeResponse = response;
+                    
+                    // update personalized messages
+                    $('#welcome_msg').html("Welcome back, " + response.name + ".");
+
+                    maybeStartApp();
+                }); */
+            }
+            
+            function loadData(cb) {
+                /*var latestData = {
+                    "friends" : [
+                        {"name" : "John Doe", "status" : "ready_to_play"},
+                        {"name" : "Jane Doe", "status" : "ready_to_play"},
+                        {"name" : "Ori Ratner", "status" : "offline"},
+                        {"name" : "Max Zuck", "status" : "offline"}
+                    ],
+                    
+                    "notifications" : [],
+                }
+                
+                var new_friends = latestData ? latestData.friends : [];
+                */
+                var new_friends = [];
+                var old_friends = _playTimeData ? _playTimeData.friends : [];
+                
+                // Find all users in the list of emails that are our friends
+                var query = new Parse.Query(Parse.User);
+                query.containedIn( "email",  Parse.User.current().get("friends") );
+                query.find({
+                    success: function(results) {
+                        // construct a friends list
+                        var found_emails = []
+                        _(results).each(function(el) {
+                            var stat = "offline";
+                            var last_checkin = el.get("last_checkin");
+                            if ( last_checkin ) {
+                                var diff = new Date() - last_checkin;
+                                var READY_TO_PLAY_CHECKIN_DURATION = 30000;
+                                if ( diff <= READY_TO_PLAY_CHECKIN_DURATION ) {
+                                    stat = "ready_to_play";
+                                }
+                            }
+                            new_friends.push({ "name" : el.get("public_name"), "status" : stat, "email" : el.get("email"), "user" : el });
+                            found_emails.push(el.get("email"));
+                        });
+                        
+                        // HACK: for any email addressess for which we couldn't find a user in Parse, include them as off-line
+                        var emails_not_found = _.difference(Parse.User.current().get("friends"), found_emails);
+                        _(emails_not_found).each(function(email) {
+                            new_friends.push({ "name" : email, "status" : "offline", "email" : email, "user" : null });
+                        });
+                        
+                        updateFriendsList(new_friends, old_friends);
+                        
+                        // update local data
+                        _playTimeData = {"friends" : new_friends};
+                        
+                        // if we got a callback, pass it along
+                        if ( cb ) {
+                            maybeStartApp(cb);
+                        }
+                    },
+                    error: function(error) {
+                        alert("Error: " + error.code + " " + error.message);
+                    }
+                });
+                
+            }
+            
+            function maybeStartApp(cb) {
+                if ( _playTimeData && _fbMeResponse ) {
+                    cb()
+                }
+            }
+            
+            function updateFriendsList(new_friends, old_friends) {
+                
+                // sort helper function
+                function sortByName(a, b){
+                  var aName = a.name.toLowerCase();
+                  var bName = b.name.toLowerCase(); 
+                  return ((aName < bName) ? -1 : ((aName > bName) ? 1 : 0));
+                }
+                
+                // Figure out what has been updated...
+                old_friends.sort(sortByName);
+                new_friends.sort(sortByName);
+                
+                var old_i = 0, new_i = 0;
+                var added_friends = [];
+                var removed_friends = [];
+                
+                while ( old_i < old_friends.length && new_i < new_friends.length ) {
+                    var old_friend = old_friends[old_i];
+                    var new_friend = new_friends[new_i];
+                    
+                    // if new friends are missing an item from old friends, something must have deleted them from our list
+                    if ( old_friend.name < new_friend.name ) {
+                        removed_friends.push(old_friend);
+                        old_i++;
+                        
+                    // if old friends are missing an item found in new friends, we have a new friend to add
+                    } else if ( old_friend.name > new_friend.name ) {
+                        added_friends.push(new_friend);
+                        new_i++; 
+                    
+                    // if it's the same friend, check if it's been updated
+                    } else {
+                        if ( old_friend.status != new_friend.status ) {
+                            // cheap trick: just make sure we remove it, then re-add it with the new status
+                            removed_friends.push(old_friend);
+                            added_friends.push(new_friend);
+                        }
+                        old_i++;
+                        new_i++;
+                    }
+                }
+                // add rest of old friends to the removed list
+                while ( old_i < old_friends.length ) {
+                    removed_friends.push( old_friends[old_i] );
+                    old_i++
+                }
+                // add rest of new friends to the added list
+                while ( new_i < new_friends.length ) {
+                    added_friends.push( new_friends[new_i] );
+                    new_i++
+                }
+                
+                // Use our 3 arrays of changes to update the DOM
+                var friend_list_jq = $('#friend_list_ul');
+                var ready_to_play_header_jq = $('#ready_to_play_header');
+                var offline_header_jq = $('#offline_header');
+                
+                var friend_template = _.template('<li data-theme="c" data-friend-name="<%= name %>"><a href="#page4" data-transition="slide"><%= name %></a></li>')
+                
+                var friend_delete_template = _.template('<li data-theme="c" data-icon="delete" data-friend-name="<%= name %>"><a href="#pageManageFriends" data-transition="none" onclick="removeFriend(\'<%= email %>\')"><%= name %></a></li>');
+                
+                _(removed_friends).each(function(el) {
+                    console.log("removing " + el.name);
+                    friend_list_jq.find("[data-friend-name='" + el.name + "']").remove();
+                    $('#friend_delete_list').find("[data-friend-name='" + el.name + "']").remove();
+                });
+                
+                _(added_friends).each(function(el) {
+                    console.log("inserting " + el.name + " with html " + friend_template(el));
+                    if ( el.status === "offline" ) {
+                        $( friend_template(el) ).insertAfter( offline_header_jq );
+                    } else {
+                        $( friend_template(el) ).insertAfter( ready_to_play_header_jq );
+                    }
+                    
+                    // add to deletion list
+                    $('#friend_delete_list').append( friend_delete_template(el) )
+                });
+                
+                // if this isn't the first time we've been called, refresh
+                if ( _playTimeData ) {
+                    try {
+                        $('#friend_list_ul').listview('refresh');
+                    } catch (e) {}
+                     try {
+                        $('#friend_delete_list').listview('refresh');
+                    } catch (e) {}
+                }
+            }
+            
+        </script>
+        
+        <div data-role="page" id="page0">
+            <div data-theme="a" data-role="header">
+                <div data-theme="a" data-role="header">
+                    <h3>
+                        PlayTime Demo
+                    </h3>
+                </div>
+            </div>
+            <div data-role="content">
+                <div>
+                    <p style="text-align: center; ">
+                        <strong>
+                            Loading...
+                        </strong>
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <div data-role="page" id="pageSetProfile">
+            <div data-theme="a" data-role="header">
+                <div data-theme="a" data-role="header">
+                    <h3>
+                        Update Profile
+                    </h3>
+                </div>
+            </div>
+            <div data-role="content">
+                <form id="profile_form" action="#pageSetProfile" method="get" onsubmit="return false;">
+                    <div data-role="fieldcontain">
+                        <label for="public_name">Public Name:</label>
+                        <input type="text" name="public_name" id="public_name" value="" />
+                        <a data-role="button" data-transition="slide" data-theme="a" href="#pageSetProfile" onClick="updateProfile()">Update Profile</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <div data-role="page" id="pageLogin">
+            <div data-theme="a" data-role="header">
+                <div data-theme="a" data-role="header">
+                    <h3>
+                        Play Time Demo
+                    </h3>
+                </div>
+            </div>
+            <div data-role="content">
+                <form id="login_form" action="#pageLogin" method="get" onsubmit="return false;">
+                <div data-role="fieldcontain">
+                    <label for="login_email">Email:</label>
+                    <input type="email" name="login_email" id="login_email" value="" />
+                    <label for="login_password">Password:</label>
+                    <input type="password" name="login_password" id="login_password" value="" />
+                    <div class="ui-grid-a">
+                    	    <div class="ui-block-a">
+                    		    <a data-role="button" data-transition="slide" data-theme="a" href="#pageLogin" onClick="registerUser();">Register</a>
+                    		</div>
+                    		<div class="ui-block-b">
+                    		    <a data-role="button" data-transition="slide" data-theme="b" href="#pageLogin" onClick="loginUser();">Login</a>
+                    		</div>
+                    </div>
+                </div>
+                </form>
+            </div>
+        </div>
+        
+        <div data-role="page" id="pagePlayList">
+            <div data-theme="a" data-role="header" data-position="inline">
+                <a href="#pagePlayList" data-icon="delete" onclick="logout()">Logout</a>
+                <h3>Play List</h3>
+                <a href="#pagePlayList" data-icon="refresh" data-theme="b" onclick="loadUserData()">Refresh</a>
+            </div>
+            <div data-role="content">
+                <div>
+                    <p>
+                        Welcome back! Below, you can see which of your friends are ready to play.
+                    </p>
+                </div>
+                <ul id="friend_list_ul" data-role="listview" data-divider-theme="b" data-inset="true">
+                    <li id="ready_to_play_header" data-role="list-divider" role="heading">
+                        Ready to Play!
+                    </li>
+                    <li id="offline_header" data-role="list-divider" role="heading">
+                        Offline
+                    </li>
+                </ul>
+                <a data-role="button" data-transition="slide" data-theme="a" href="#pageManageFriends">Manage Friends</a>
+            </div>
+        </div>
+        <div data-role="page" id="pageManageFriends" data-add-back-btn="true">
+            <div data-theme="a" data-role="header">
+                <h3>
+                    Manage Friends
+                </h3>
+            </div>
+            <div data-role="content">
+                <form id="friend_form" action="#pageManageFriends" method="get" onsubmit="return false;">
+                    <div data-role="fieldcontain">
+                        <label for="friend_email">Email:</label>
+                        <input type="email" name="friend_email" id="friend_email" value="" />
+                        <a data-role="button" data-transition="slide" data-theme="b" href="#pageManageFriends" onClick="addFriend()">Add Friend</a>
+                    </div>
+                </form>
+                <ul id="friend_delete_list" data-role="listview" data-divider-theme="b" data-inset="true">
+                    <!-- Friends to delete -->
+                </ul>
+            </div>
+        </div>
+        
+        <div data-role="page" id="page4" data-add-back-btn="true">
+            <div data-theme="a" data-role="header">
+                <h3 id="chat_header">
+                    Chat with {}
+                </h3>
+            </div>
+            <div data-role="content">
+                
+            </div>
+        </div>
+    </body>
+</html>
