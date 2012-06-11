@@ -35,7 +35,7 @@
                         readyToPlay();
                     });
                 } else {
-                    document.location = "/app.html#pageLogin";
+                    document.location = "#pageLogin";
                 }
             })
         </script>
@@ -52,11 +52,11 @@
             }; */
             
             function showLoadingScreen() {
-                document.location = "/app.html#page0"
+                document.location = "#page0"
             }
             
             function loginUser() {
-                //document.location = "/app.html#page0";  // loading screen
+                //document.location = "#page0";  // loading screen
                 //FB.login(function(response) {}, {scope:'email'});
                 showLoadingScreen();
                 
@@ -71,7 +71,7 @@
                     },
                     error: function(user, error) {
                         alert("Error: " + error.code + " " + error.message);
-                        document.location = "/app.html#pageLogin";
+                        document.location = "#pageLogin";
                     }
                 });
             }
@@ -92,11 +92,11 @@
                 
                 user.signUp(null, {
                     success: function(user) {
-                        document.location = "/app.html#pageSetProfile";
+                        document.location = "#pageSetProfile";
                     },
                     error: function(user, error) {
                         alert("Error: " + error.code + " " + error.message);
-                        document.location = "/app.html#pageLogin";
+                        document.location = "#pageLogin";
                     }
                 });
             }
@@ -106,7 +106,7 @@
                 me.set("last_checkin", null);
                 me.save(null, {
                     success: function(user) {
-                        document.location = "/app.html#pageLogin"
+                        document.location = "#pageLogin"
                         Parse.User.logOut();
                     }
                 });
@@ -134,7 +134,7 @@
                 me.set("last_checkin", new Date());
                 me.save(null, {
                     success: function(user) {
-                        document.location = "/app.html#pagePlayList"
+                        document.location = "#pagePlayList"
                     },
                     error: function(user, error) {
                         alert("Error: " + error.code + " " + error.message);
@@ -201,7 +201,7 @@
                     console.log(response);
                     loadUserData(response);
                 } else {
-                    document.location = "/app.html#pageLogin";
+                    document.location = "#pageLogin";
                 }
             } */
             function loadUserData(cb) {
