@@ -6,14 +6,8 @@
         <title>
         </title>
         <link rel="stylesheet" href="http://code.jquery.com/mobile/1.1.0/jquery.mobile-1.1.0.min.css" />
-        <link rel="stylesheet" href="my.css" />
-        <style>
-            /* App custom styles */
-        </style>
-        <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js">
-        </script>
-        <script src="http://code.jquery.com/mobile/1.1.0/jquery.mobile-1.1.0.min.js">
-        </script>
+        <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+        <script src="http://code.jquery.com/mobile/1.1.0/jquery.mobile-1.1.0.min.js"></script>
         <script src="http://www.parsecdn.com/js/parse-1.0.1.min.js"></script>
         <script src="http://underscorejs.org/underscore-min.js"></script>
     </head>
@@ -51,14 +45,10 @@
               FB.Event.subscribe('auth.statusChange', handleStatusChange);	
             }; */
             
-            function showLoadingScreen() {
-                document.location = "#page0"
-            }
-            
             function loginUser() {
                 //document.location = "#page0";  // loading screen
                 //FB.login(function(response) {}, {scope:'email'});
-                showLoadingScreen();
+                $.mobile.showPageLoadingMsg();
                 
                 var email = $('#login_email').val();
                 var password = $('#login_password').val();
@@ -70,14 +60,14 @@
                         });
                     },
                     error: function(user, error) {
+                        $.mobile.hidePageLoadingMsg();
                         alert("Error: " + error.code + " " + error.message);
-                        document.location = "#pageLogin";
                     }
                 });
             }
             
             function registerUser() {
-                showLoadingScreen();
+                $.mobile.showPageLoadingMsg();
                 
                 var email = $('#login_email').val();
                 var password = $('#login_password').val();
@@ -92,9 +82,11 @@
                 
                 user.signUp(null, {
                     success: function(user) {
+                        $.mobile.hidePageLoadingMsg();
                         document.location = "#pageSetProfile";
                     },
                     error: function(user, error) {
+                        $.mobile.hidePageLoadingMsg();
                         alert("Error: " + error.code + " " + error.message);
                         document.location = "#pageLogin";
                     }
@@ -102,10 +94,12 @@
             }
             
             function logout() {
+                $.mobile.showPageLoadingMsg();
                 var me = Parse.User.current();
                 me.set("last_checkin", null);
                 me.save(null, {
                     success: function(user) {
+                        $.mobile.hidePageLoadingMsg();
                         document.location = "#pageLogin"
                         Parse.User.logOut();
                     }
@@ -113,6 +107,7 @@
             }
             
             function updateProfile() {
+                $.mobile.showPageLoadingMsg();
                 var pname = $('#public_name').val();
                 
                 var me = Parse.User.current();
@@ -124,19 +119,23 @@
                        readyToPlay();
                    },
                    error: function(user, error) {
+                       $.mobile.hidePageLoadingMsg();
                        alert("Error: " + error.code + " " + error.message);
                    }
                 });
             }
             
             function readyToPlay() {
+                // Note: no show loading msg here, since it's already shown
                 var me = Parse.User.current();
                 me.set("last_checkin", new Date());
                 me.save(null, {
                     success: function(user) {
+                        $.mobile.hidePageLoadingMsg();
                         document.location = "#pagePlayList"
                     },
                     error: function(user, error) {
+                        $.mobile.hidePageLoadingMsg();
                         alert("Error: " + error.code + " " + error.message);
                     }
                 });
@@ -147,8 +146,6 @@
                     console.log(response)
                 }); */
                 
-                // TODO: show loading screen
-                
                 var new_email = $('#friend_email').val();
                 if ( new_email && /(.+)@(.+){2,}\.(.+){2,}/.test(new_email) ) {
                     var me = Parse.User.current();
@@ -158,12 +155,16 @@
                     if ( !_(friends).include(new_email) ) {
                         friends.push( new_email );
                         me.set("friends", friends);
+                        
+                        $.mobile.showPageLoadingMsg();
+                        
                         me.save(null, {
                            success: function(user) {
                                $('#friend_email').val("");
-                               loadUserData();
+                               loadUserData(function() { $.mobile.hidePageLoadingMsg() });
                            },
                            error: function(user, error) {
+                               $.mobile.hidePageLoadingMsg();
                                alert("Error: " + error.code + " " + error.message);
                            }
                         });
@@ -174,17 +175,27 @@
             }
             
             function removeFriend(email) {
+                $.mobile.showPageLoadingMsg();
+                
                 var me = Parse.User.current();
                 var friends = me.get("friends");
                 friends = friends ? friends : [];
                 me.set("friends", _(friends).without(email) );
                 me.save(null, {
                    success: function(user) {
-                       loadUserData();
+                       loadUserData(function() { $.mobile.hidePageLoadingMsg() });
                    },
                    error: function(user, error) {
+                       $.mobile.hidePageLoadingMsg();
                        alert("Error: " + error.code + " " + error.message);
                    }
+                });
+            }
+            
+            function refreshUserData() {
+                $.mobile.showPageLoadingMsg();
+                loadUserData(function() {
+                    $.mobile.hidePageLoadingMsg();
                 });
             }
         </script>
@@ -272,20 +283,15 @@
                         
                         // if we got a callback, pass it along
                         if ( cb ) {
-                            maybeStartApp(cb);
+                            cb();
                         }
                     },
                     error: function(error) {
+                        $.mobile.hidePageLoadingMsg();
                         alert("Error: " + error.code + " " + error.message);
                     }
                 });
                 
-            }
-            
-            function maybeStartApp(cb) {
-                if ( _playTimeData && _fbMeResponse ) {
-                    cb()
-                }
             }
             
             function updateFriendsList(new_friends, old_friends) {
@@ -451,7 +457,7 @@
             <div data-theme="a" data-role="header" data-position="inline">
                 <a href="#pagePlayList" data-icon="delete" onclick="logout()">Logout</a>
                 <h3>Play List</h3>
-                <a href="#pagePlayList" data-icon="refresh" data-theme="b" onclick="loadUserData()">Refresh</a>
+                <a href="#pagePlayList" data-icon="refresh" data-theme="b" onclick="refreshUserData()">Refresh</a>
             </div>
             <div data-role="content">
                 <div>
